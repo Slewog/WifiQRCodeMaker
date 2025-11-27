@@ -9,20 +9,44 @@ from os.path import (
 )
 
 DIR_PATH = getattr(sys, '_MEIPASS', os_path_dirname(os_path_abspath(__file__)))
+ASSETS_PATH = os_path_join(DIR_PATH, 'assets')
 APP_TITLE = 'Wifi QR Code Maker'
 
 
-def get_screen_work_area():
-    pass
+def get_display_work_area(is_win32:bool) -> dict[str, int]:
+    if is_win32:
+        from ctypes import windll, byref
+        from ctypes.wintypes import RECT
+        work_area = RECT()
+        _ = windll.user32.SystemParametersInfoW(0x0030, 0, byref(work_area), 0)
+
+        return {'width': work_area.right, 'height': work_area.bottom}
+
+    from re import split
+    from subprocess import check_output
+    work_area = split(
+        '=|,',
+        check_output(['xprop', '-root', '_NET_WORKAREA']).decode()
+    )
+
+    return {'width': int(work_area[3]), 'height': int(work_area[4])}
+
+
+def make_geometry(work_area:dict[str, int], win_width: int, win_height:int) -> str:
+        x = (work_area['width'] - win_width) // 2
+        y = (work_area['height'] - win_height) // 2
+        return f"{win_width}x{win_height}+{x}+{y}"
 
 
 class Gui:
-    def __init__(self, win: ctk.CTk) -> None:
+    def __init__(self, win: ctk.CTk, is_win32:bool, work_area:dict[str, int]) -> None:
+        win.title(APP_TITLE)
+        if is_win32:
+            win.iconbitmap(os_path_join(ASSETS_PATH, 'images', 'logo.ico'))
+        win.geometry(make_geometry(work_area, 540, 600))
+        win.resizable(width=False, height=False)
+
         self.win = win
-
-        self.win.title(APP_TITLE)
-        self.win.geometry('540x600')
-
 
 if __name__ == '__main__':
     window = ctk.CTk()
@@ -34,6 +58,7 @@ if __name__ == '__main__':
     font12 = ctk.CTkFont(family='Roboto', size=12, weight='normal', slant='roman')
     fontbold = ctk.CTkFont(family='Roboto', size=12, weight='bold', slant='roman')
 
-    app = Gui(win=window)
+    is_win32 = sys.platform.startswith('win')
+    app = Gui(window, is_win32, get_display_work_area(is_win32))
     window.mainloop()
     sys.exit()
