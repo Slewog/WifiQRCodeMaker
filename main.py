@@ -14,8 +14,8 @@ ASSETS_PATH = os_path_join(DIR_PATH, 'assets')
 APP_TITLE = 'Wifi QR Code Maker'
 
 
-def get_display_work_area(is_win32: bool) -> dict[str, int]:
-    if is_win32:
+def get_display_work_area() -> dict[str, int]:
+    try:
         from ctypes import windll, byref
         from ctypes.wintypes import RECT
         SPI_GETWORKAREA = 0x0030
@@ -23,16 +23,10 @@ def get_display_work_area(is_win32: bool) -> dict[str, int]:
         _ = windll.user32.SystemParametersInfoW(SPI_GETWORKAREA, 0, byref(work_area), 0)
 
         return {'width': work_area.right - work_area.left, 'height': work_area.bottom - work_area.top}
-
-    from re import split
-    from subprocess import check_output
-    work_area = split(
-        '=|,',
-        check_output(['xprop', '-root', '_NET_WORKAREA']).decode(errors='ignore')
-    )
-
-    return {'width': int(work_area[3]), 'height': int(work_area[4])}
-
+    except Exception:
+        width = window.winfo_screenwidth()
+        height = window.winfo_screenheight()
+        return {'width': width, 'height': height}
 
 def make_geometry(work_area:dict[str, int], win_width: int, win_height:int) -> str:
         x = (work_area['width'] - win_width) // 2
@@ -41,9 +35,9 @@ def make_geometry(work_area:dict[str, int], win_width: int, win_height:int) -> s
 
 
 class Gui:
-    def __init__(self, win: ctk.CTk, is_win32:bool, work_area:dict[str, int]) -> None:
+    def __init__(self, win: ctk.CTk, work_area:dict[str, int]) -> None:
         win.title(APP_TITLE)
-        if is_win32:
+        if sys.platform.startswith('win'):
             icon_path = os_path_join(ASSETS_PATH, 'images', 'logo.ico')
             if os_path_exists(icon_path):
                 win.iconbitmap(icon_path)
@@ -67,7 +61,7 @@ if __name__ == '__main__':
     font12 = ctk.CTkFont(family=font_family, size=12, weight='normal', slant='roman')
     fontbold = ctk.CTkFont(family=font_family, size=12, weight='bold', slant='roman')
 
-    is_win32 = sys.platform.startswith('win')
-    app = Gui(window, is_win32, get_display_work_area(is_win32))
+
+    app = Gui(window, get_display_work_area())
     window.mainloop()
     sys.exit()
